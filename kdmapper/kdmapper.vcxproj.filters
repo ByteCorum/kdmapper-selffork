@@ -30,6 +30,9 @@
     <ClInclude Include="include\intel_driver_resource.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\cfg.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">

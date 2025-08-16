@@ -260,6 +260,7 @@
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\cfg.hpp" />
     <ClInclude Include="include\intel_driver.hpp" />
     <ClInclude Include="include\intel_driver_resource.hpp" />
     <ClInclude Include="include\kdmapper.hpp" />

@@ -8,6 +8,7 @@
 #include "kdmapper.hpp"
 #include "utils.hpp"
 #include "intel_driver.hpp"
+#include "cfg.hpp"
 
 HANDLE iqvw64e_device_handle;
 
@@ -23,19 +24,6 @@ LONG WINAPI SimplestCrashHandler(EXCEPTION_POINTERS* ExceptionInfo)
 		intel_driver::Unload(iqvw64e_device_handle);
 
 	return EXCEPTION_EXECUTE_HANDLER;
-}
-
-int paramExists(const int argc, wchar_t** argv, const wchar_t* param) {
-	size_t plen = wcslen(param);
-	for (int i = 1; i < argc; i++) {
-		if (wcslen(argv[i]) == plen + 1ull && _wcsicmp(&argv[i][1], param) == 0 && argv[i][0] == '/') { // with slash
-			return i;
-		}
-		else if (wcslen(argv[i]) == plen + 2ull && _wcsicmp(&argv[i][2], param) == 0 && argv[i][0] == '-' && argv[i][1] == '-') { // with double dash
-			return i;
-		}
-	}
-	return -1;
 }
 
 bool callbackExample(ULONG64* param1, ULONG64* param2, ULONG64 allocationPtr, ULONG64 allocationSize) {
@@ -82,111 +70,75 @@ DWORD getParentProcess()
 	return ppid;
 }
 
-//Help people that don't understand how to open a console
-void PauseIfParentIsExplorer() {
-	DWORD explorerPid = 0;
-	GetWindowThreadProcessId(GetShellWindow(), &explorerPid);
-	DWORD parentPid = getParentProcess();
-	if (parentPid == explorerPid) {
-		Log(L"[+] Pausing to allow for debugging" << std::endl);
-		Log(L"[+] Press enter to close" << std::endl);
-		std::cin.get();
-	}
-}
-
 void help() {
 	Log(L"\r\n\r\n[!] Incorrect Usage!" << std::endl);
 	Log(L"[+] Usage: kdmapper.exe [--free | --indPages][--PassAllocationPtr][--copy-header]");
 	
 	Log(L" driver" << std::endl);
 
-	PauseIfParentIsExplorer();
+	system("pause");
 }
 
 int wmain(const int argc, wchar_t** argv) {
 	SetUnhandledExceptionFilter(SimplestCrashHandler);
 
-	bool free = paramExists(argc, argv, L"free") > 0;
-	bool indPagesMode = paramExists(argc, argv, L"indPages") > 0;
-	bool passAllocationPtr = paramExists(argc, argv, L"PassAllocationPtr") > 0;
-	bool copyHeader = paramExists(argc, argv, L"copy-header") > 0;
+	printf(R"LOGO(______                            ______                  
+|  _  \                           | ___ \                 
+| | | |_ __ __ _  __ _  ___  _ __ | |_/ /_   _ _ __ _ __  
+| | | | '__/ _` |/ _` |/ _ \| '_ \| ___ \ | | | '__| '_ \ 
+| |/ /| | | (_| | (_| | (_) | | | | |_/ / |_| | |  | | | |
+|___/ |_|  \__,_|\__, |\___/|_| |_\____/ \__,_|_|  |_| |_|
+                  __/ |                                   
+                 |___/                                    
 
-	if (free) {
+https://discord.gg/5WcvdzFybD
+https://github.com/ByteCorum/DragonBurn
+
+
+)LOGO");
+
+	if (cfg::free)
 		Log(L"[+] Free pool memory after usage enabled" << std::endl);
-	}
-
-	if (indPagesMode) {
+	if (cfg::indPagesMode)
 		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);
-	}
+	if (cfg::passAllocationPtr)
+		Log(L"[+] Pass Allocation Ptr as first param enabled" << std::endl);
+	if (cfg::copyHeader)
+		Log(L"[+] Copying driver header enabled" << std::endl);
 
-	if (free && indPagesMode) {
+	if (cfg::free && cfg::indPagesMode)
+	{
 		Log(L"[-] Can't use --free and --indPages at the same time" << std::endl);
 		help();
-		return -1;
-	}
-
-	if (passAllocationPtr) {
-		Log(L"[+] Pass Allocation Ptr as first param enabled" << std::endl);
-	}
-
-	if (copyHeader) {
-		Log(L"[+] Copying driver header enabled" << std::endl);
-	}
-
-	int drvIndex = -1;
-	for (int i = 1; i < argc; i++) {
-		if (std::filesystem::path(argv[i]).extension().string().compare(".sys") == 0) {
-			drvIndex = i;
-			break;
-		}
-	}
-
-	if (drvIndex <= 0) {
-		help();
-		return -1;
-	}
-
-	const std::wstring driver_path = argv[drvIndex];
-
-	if (!std::filesystem::exists(driver_path)) {
-		Log(L"[-] File " << driver_path << L" doesn't exist" << std::endl);
-		PauseIfParentIsExplorer();
 		return -1;
 	}
 
 	iqvw64e_device_handle = intel_driver::Load();
 
 	if (iqvw64e_device_handle == INVALID_HANDLE_VALUE) {
-		PauseIfParentIsExplorer();
-		return -1;
-	}
-
-	std::vector<uint8_t> raw_image = { 0 };
-	if (!utils::ReadFileToMemory(driver_path, &raw_image)) {
-		Log(L"[-] Failed to read image to memory" << std::endl);
-		intel_driver::Unload(iqvw64e_device_handle);
-		PauseIfParentIsExplorer();
+		system("pause");
 		return -1;
 	}
 
 	kdmapper::AllocationMode mode = kdmapper::AllocationMode::AllocatePool;
 
-	if (indPagesMode) {
+	if (cfg::indPagesMode) {
 		mode = kdmapper::AllocationMode::AllocateIndependentPages;
 	}
 
 	NTSTATUS exitCode = 0;
-	if (!kdmapper::MapDriver(iqvw64e_device_handle, raw_image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode)) {
-		Log(L"[-] Failed to map " << driver_path << std::endl);
+	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !cfg::copyHeader, mode, cfg::passAllocationPtr, callbackExample, &exitCode)) {
+		Log(L"[-] Failed to map DragonBurn driver"<< std::endl);
 		intel_driver::Unload(iqvw64e_device_handle);
-		PauseIfParentIsExplorer();
+		system("pause");
 		return -1;
 	}
 
 	if (!intel_driver::Unload(iqvw64e_device_handle)) {
-		Log(L"[-] Warning failed to fully unload vulnerable driver " << std::endl);
-		PauseIfParentIsExplorer();
+		Log(L"[-] Warning failed to fully unload vulnerable driver" << std::endl);
+		system("pause");
 	}
 	Log(L"[+] success" << std::endl);
-
+	system("pause");
+	return 0;
 }
