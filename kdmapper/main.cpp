@@ -1,5 +1,3 @@
-#ifndef KDLIBMODE
-
 #include <Windows.h>
 #include <iostream>
 #include <string>
@@ -10,10 +8,6 @@
 #include "kdmapper.hpp"
 #include "utils.hpp"
 #include "intel_driver.hpp"
-
-#ifdef PDB_OFFSETS
-#include "KDSymbolsHandler.h"
-#endif
 
 HANDLE iqvw64e_device_handle;
 
@@ -103,10 +97,6 @@ void PauseIfParentIsExplorer() {
 void help() {
 	Log(L"\r\n\r\n[!] Incorrect Usage!" << std::endl);
 	Log(L"[+] Usage: kdmapper.exe [--free | --indPages][--PassAllocationPtr][--copy-header]");
-
-#ifdef PDB_OFFSETS
-	Log(L"[--dontUpdateOffsets [--offsetsPath \"FilePath\"]]"); 
-#endif
 	
 	Log(L" driver" << std::endl);
 
@@ -143,23 +133,6 @@ int wmain(const int argc, wchar_t** argv) {
 		Log(L"[+] Copying driver header enabled" << std::endl);
 	}
 
-#ifdef PDB_OFFSETS
-	bool UpdateOffset = !(paramExists(argc, argv, L"dontUpdateOffsets") > 0);
-	int FilePathParamIdx = paramExists(argc, argv, L"offsetsPath");
-	std::wstring offsetFilePath = utils::GetCurrentAppFolder() + L"\\offsets.ini";
-
-	if (UpdateOffset && FilePathParamIdx > 0) {
-		Log("[-] Can't set --offsetsPath without set --dontUpdateOffsets" << std::endl);
-		help();
-		return -1;
-	}
-
-	if (FilePathParamIdx > 0) {
-		offsetFilePath = argv[FilePathParamIdx + 1];
-		Log("[+] Setting Offsets File Path To: " << offsetFilePath << std::endl);
-	}
-#endif
-
 	int drvIndex = -1;
 	for (int i = 1; i < argc; i++) {
 		if (std::filesystem::path(argv[i]).extension().string().compare(".sys") == 0) {
@@ -180,14 +153,6 @@ int wmain(const int argc, wchar_t** argv) {
 		PauseIfParentIsExplorer();
 		return -1;
 	}
-
-#ifdef PDB_OFFSETS
-	if (!KDSymbolsHandler::GetInstance()->ReloadFile(offsetFilePath, UpdateOffset ? utils::GetCurrentAppFolder() + L"\\" + SYM_FROM_PDB_EXE : L"")) {
-		Log(L"[-] Error: Failed To Get Symbols Info." << std::endl);
-		PauseIfParentIsExplorer();
-		return -1;
-	}
-#endif
 
 	iqvw64e_device_handle = intel_driver::Load();
 
@@ -225,5 +190,3 @@ int wmain(const int argc, wchar_t** argv) {
 	Log(L"[+] success" << std::endl);
 
 }
-
-#endif

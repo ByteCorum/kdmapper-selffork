@@ -8,11 +8,6 @@
 #include "service.hpp"
 #include "nt.hpp"
 #include "portable_executable.hpp"
-
-#ifdef PDB_OFFSETS
-#include "KDSymbolsHandler.h"
-#endif
-
 /**
  Command structures
 */
@@ -220,28 +215,6 @@ bool intel_driver::ClearWdFilterDriverList(HANDLE device_handle) {
 		return true;
 	}
 
-#ifdef PDB_OFFSETS
-	uintptr_t MpBmDocOpenRules = KDSymbolsHandler::GetInstance()->GetOffset(L"MpBmDocOpenRules");
-	if (!MpBmDocOpenRules)
-	{
-		Log("[-] Failed To Get MpBmDocOpenRules." << std::endl);
-		return false;
-	}
-	MpBmDocOpenRules += WdFilter;
-
-	uintptr_t RuntimeDriversList_Head = MpBmDocOpenRules + 0x70;
-	uintptr_t RuntimeDriversCount = MpBmDocOpenRules + 0x60;
-	uintptr_t RuntimeDriversArray = MpBmDocOpenRules + 0x68;
-	ReadMemory(device_handle, RuntimeDriversArray, &RuntimeDriversArray, sizeof(uintptr_t));
-
-	uintptr_t MpFreeDriverInfoEx = KDSymbolsHandler::GetInstance()->GetOffset(L"MpFreeDriverInfoEx");
-	if (!MpFreeDriverInfoEx)
-	{
-		Log("[-] Failed To Get MpFreeDriverInfoEx." << std::endl);
-		return false;
-	}
-	MpFreeDriverInfoEx += WdFilter;
-#else
 	auto RuntimeDriversList = FindPatternInSectionAtKernel(device_handle, "PAGE", WdFilter, (PUCHAR)"\x48\x8B\x0D\x00\x00\x00\x00\xFF\x05", "xxx????xx");
 	if (!RuntimeDriversList) {
 		Log("[!] Failed to find WdFilter RuntimeDriversList" << std::endl);
@@ -291,7 +264,6 @@ bool intel_driver::ClearWdFilterDriverList(HANDLE device_handle) {
 	uintptr_t RuntimeDriversArray = RuntimeDriversCount + 0x8;
 	ReadMemory(device_handle, RuntimeDriversArray, &RuntimeDriversArray, sizeof(uintptr_t));
 	uintptr_t MpFreeDriverInfoEx = (uintptr_t)ResolveRelativeAddress(device_handle, (PVOID)MpFreeDriverInfoExRef, 1, 5);
-#endif
 
 	auto ReadListEntry = [&](uintptr_t Address) -> LIST_ENTRY* { // Useful lambda to read LIST_ENTRY
 		LIST_ENTRY* Entry;
@@ -523,17 +495,6 @@ uint64_t intel_driver::MmAllocateIndependentPagesEx(HANDLE device_handle, uint32
 
 	static uint64_t kernel_MmAllocateIndependentPagesEx = 0;
 
-#ifdef PDB_OFFSETS	
-	if (!kernel_MmAllocateIndependentPagesEx)
-	{
-		kernel_MmAllocateIndependentPagesEx = KDSymbolsHandler::GetInstance()->GetOffset(L"MmAllocateIndependentPagesEx");
-		if (!kernel_MmAllocateIndependentPagesEx) {
-			Log(L"[!] Failed to find MmAllocateIndependentPagesEx" << std::endl);
-			return 0;
-		}
-		kernel_MmAllocateIndependentPagesEx += intel_driver::ntoskrnlAddr;
-	}
-#else
 	if (!kernel_MmAllocateIndependentPagesEx)
 	{
 		//Updated, tested from 1803 to 24H2
@@ -554,7 +515,6 @@ uint64_t intel_driver::MmAllocateIndependentPagesEx(HANDLE device_handle, uint32
 			return 0;
 		}
 	}
-#endif
 
 	if (!intel_driver::CallKernelFunction(device_handle, &allocated_pages, kernel_MmAllocateIndependentPagesEx, size, -1, 0, 0))
 		return 0;
@@ -568,14 +528,6 @@ bool intel_driver::MmFreeIndependentPages(HANDLE device_handle, uint64_t address
 
 	if (!kernel_MmFreeIndependentPages)
 	{
-#ifdef PDB_OFFSETS	
-		kernel_MmFreeIndependentPages = KDSymbolsHandler::GetInstance()->GetOffset(L"MmFreeIndependentPages");
-		if (!kernel_MmFreeIndependentPages) {
-			Log(L"[!] Failed to find MmFreeIndependentPages" << std::endl);
-			return false;
-		}
-		kernel_MmFreeIndependentPages += intel_driver::ntoskrnlAddr;
-#else
 		kernel_MmFreeIndependentPages = intel_driver::FindPatternInSectionAtKernel(device_handle, "PAGE", intel_driver::ntoskrnlAddr,
 			(BYTE*)"\xBA\x00\x60\x00\x00\x48\x8B\xCB\xE8\x00\x00\x00\x00\x48\x8D\x8B\x00\xF0\xFF\xFF",
 			(char*)"xxxxxxxxx????xxxxxxx");
@@ -591,7 +543,6 @@ bool intel_driver::MmFreeIndependentPages(HANDLE device_handle, uint64_t address
 			Log(L"[!] Failed to find MmFreeIndependentPages" << std::endl);
 			return false;
 		}
-#endif
 	}
 
 	uint64_t result{};
@@ -610,14 +561,6 @@ BOOLEAN intel_driver::MmSetPageProtection(HANDLE device_handle, uint64_t address
 	
 	if (!kernel_MmSetPageProtection)
 	{
-#ifdef PDB_OFFSETS	
-		kernel_MmSetPageProtection = KDSymbolsHandler::GetInstance()->GetOffset(L"MmSetPageProtection");
-		if (!kernel_MmSetPageProtection) {
-			Log(L"[!] Failed to find MmSetPageProtection" << std::endl);
-			return FALSE;
-		}
-		kernel_MmSetPageProtection += intel_driver::ntoskrnlAddr;
-#else
 		//Updated, tested from 1803 to 24H2
 		//  0F 45 ? ? 8D ? ? ? FF FF E8
 		//  0F 45 ? ? 45 8B ? ? ? ? 8D ? ? ? ? ? ? FF FF E8  (Some windows builds have a instruction in the middle)
@@ -646,7 +589,6 @@ BOOLEAN intel_driver::MmSetPageProtection(HANDLE device_handle, uint64_t address
 			Log(L"[!] Failed to find MmSetPageProtection" << std::endl);
 			return FALSE;
 		}
-#endif
 	}
 
 	BOOLEAN set_prot_status{};
@@ -922,24 +864,6 @@ nt::PiDDBCacheEntry* intel_driver::LookupEntry(HANDLE device_handle, nt::PRTL_AV
 
 bool intel_driver::ClearPiDDBCacheTable(HANDLE device_handle) { //PiDDBCacheTable added on LoadDriver
 
-#ifdef PDB_OFFSETS
-	auto PiDDBLockOffset = KDSymbolsHandler::GetInstance()->GetOffset(L"PiDDBLock");
-	if (!PiDDBLockOffset)
-	{
-		Log(L"[-] Warning PiDDBLock not found" << std::endl);
-		return false;
-	}
-
-	auto PiDDBCacheTableOffset = KDSymbolsHandler::GetInstance()->GetOffset(L"PiDDBCacheTable");
-	if (!PiDDBLockOffset)
-	{
-		Log(L"[-] Warning PiDDBCacheTable not found" << std::endl);
-		return false;
-	}
-
-	PVOID PiDDBLock = (PVOID)(intel_driver::ntoskrnlAddr + PiDDBLockOffset);
-	nt::PRTL_AVL_TABLE PiDDBCacheTable = (nt::PRTL_AVL_TABLE)(intel_driver::ntoskrnlAddr + PiDDBCacheTableOffset);
-#else
 	auto PiDDBLockPtr = FindPatternInSectionAtKernel(device_handle, "PAGE", intel_driver::ntoskrnlAddr, (PUCHAR)"\x8B\xD8\x85\xC0\x0F\x88\x00\x00\x00\x00\x65\x48\x8B\x04\x25\x00\x00\x00\x00\x66\xFF\x88\x00\x00\x00\x00\xB2\x01\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x4C\x8B\x00\x24", "xxxxxx????xxxxx????xxx????xxxxx????x????xx?x"); // 8B D8 85 C0 0F 88 ? ? ? ? 65 48 8B 04 25 ? ? ? ? 66 FF 88 ? ? ? ? B2 01 48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B ? 24 update for build 22000.132
 	auto PiDDBCacheTablePtr = FindPatternInSectionAtKernel(device_handle, "PAGE", intel_driver::ntoskrnlAddr, (PUCHAR)"\x66\x03\xD2\x48\x8D\x0D", "xxxxxx"); // 66 03 D2 48 8D 0D
 
@@ -982,7 +906,7 @@ bool intel_driver::ClearPiDDBCacheTable(HANDLE device_handle) { //PiDDBCacheTabl
 
 	PVOID PiDDBLock = ResolveRelativeAddress(device_handle, (PVOID)PiDDBLockPtr, 3, 7);
 	nt::PRTL_AVL_TABLE PiDDBCacheTable = (nt::PRTL_AVL_TABLE)ResolveRelativeAddress(device_handle, (PVOID)PiDDBCacheTablePtr, 6, 10);
-#endif
+
 	//context part is not used by lookup, lock or delete why we should use it?
 
 	if (!ExAcquireResourceExclusiveLite(device_handle, PiDDBLock, true)) {
@@ -1111,25 +1035,6 @@ bool intel_driver::ClearKernelHashBucketList(HANDLE device_handle) {
 		return false;
 	}
 
-	//Thanks @KDIo3 and @Swiftik from UnknownCheats
-#ifdef PDB_OFFSETS
-	auto g_KernelHashBucketListOffset = KDSymbolsHandler::GetInstance()->GetOffset(L"g_KernelHashBucketList");
-	if (!g_KernelHashBucketListOffset)
-	{
-		Log(L"[-] Can't Find g_KernelHashBucketList Offset" << std::endl);
-		return false;
-	}
-
-	auto g_HashCacheLockOffset = KDSymbolsHandler::GetInstance()->GetOffset(L"g_HashCacheLock");
-	if (!g_KernelHashBucketListOffset)
-	{
-		Log(L"[-] Can't Find g_HashCacheLock Offset" << std::endl);
-		return false;
-	}
-
-	PVOID g_KernelHashBucketList = (PVOID)(ci + g_KernelHashBucketListOffset);
-	PVOID g_HashCacheLock = (PVOID)(ci + g_HashCacheLockOffset);
-#else
 	auto sig = FindPatternInSectionAtKernel(device_handle, "PAGE", ci, PUCHAR("\x48\x8B\x1D\x00\x00\x00\x00\xEB\x00\xF7\x43\x40\x00\x20\x00\x00"), "xxx????x?xxxxxxx");
 	if (!sig) {
 		Log(L"[-] Can't Find g_KernelHashBucketList" << std::endl);
@@ -1147,7 +1052,6 @@ bool intel_driver::ClearKernelHashBucketList(HANDLE device_handle) {
 		Log(L"[-] Can't Find g_HashCache relative address" << std::endl);
 		return false;
 	}
-#endif
 
 	Log(L"[+] g_KernelHashBucketList Found 0x" << std::hex << g_KernelHashBucketList << std::endl);
 
