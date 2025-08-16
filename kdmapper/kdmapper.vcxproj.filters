@@ -33,10 +33,14 @@
     <ClInclude Include="include\cfg.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">
       <UniqueIdentifier>{ac359fba-b363-4b75-bd19-310104ec8f2c}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
 </Project>
