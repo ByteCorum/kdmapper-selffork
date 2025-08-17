@@ -91,6 +91,7 @@ https://github.com/ByteCorum/DragonBurn
 	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
 	std::string supportedVersions;
 
+	Log(L"[<] Checking mapper version..." << std::endl);
 	if (!Web::CheckConnection())
 	{
 		Log(L"[-] Bad internet connection" << std::endl);
