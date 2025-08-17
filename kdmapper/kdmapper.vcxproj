@@ -268,6 +268,7 @@
     <ClInclude Include="include\portable_executable.hpp" />
     <ClInclude Include="include\service.hpp" />
     <ClInclude Include="include\utils.hpp" />
+    <ClInclude Include="include\web_api.hpp" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

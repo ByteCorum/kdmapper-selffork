@@ -34,6 +34,7 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="include\web_api.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">

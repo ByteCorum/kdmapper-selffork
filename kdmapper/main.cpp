@@ -9,6 +9,7 @@
 #include "utils.hpp"
 #include "intel_driver.hpp"
 #include "cfg.hpp"
+#include "web_api.hpp"
 
 HANDLE iqvw64e_device_handle;
 
@@ -70,15 +71,6 @@ DWORD getParentProcess()
 	return ppid;
 }
 
-void help() {
-	Log(L"\r\n\r\n[!] Incorrect Usage!" << std::endl);
-	Log(L"[+] Usage: kdmapper.exe [--free | --indPages][--PassAllocationPtr][--copy-header]");
-	
-	Log(L" driver" << std::endl);
-
-	system("pause");
-}
-
 int wmain(const int argc, wchar_t** argv) {
 	SetUnhandledExceptionFilter(SimplestCrashHandler);
 
@@ -94,24 +86,40 @@ int wmain(const int argc, wchar_t** argv) {
 https://discord.gg/5WcvdzFybD
 https://github.com/ByteCorum/DragonBurn
 
-
 )LOGO");
+
+	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
+	std::string supportedVersions;
+
+	if (!Web::CheckConnection())
+	{
+		Log(L"[-] Bad internet connection" << std::endl);
+		system("pause");
+		return -1;
+	}
+	if (!Web::Get(curVersionUrl, supportedVersions))
+	{
+		Log(L"[-] Failed to get currently supported versions" << std::endl);
+		system("pause");
+		return -1;
+	}
+	if (supportedVersions.find(cfg::version) != std::string::npos)
+		std::cout << "[+] Your mapper version is up to date and supported"<< std::endl;
+	else 
+	{
+		Log(L"[-] Your mapper version is out of support" << std::endl);
+		system("pause");
+		return -1;
+	}
 
 	if (cfg::free)
 		Log(L"[+] Free pool memory after usage enabled" << std::endl);
 	if (cfg::indPagesMode)
-		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);
+		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);// Log(L"[-] Can't use --free and --indPages at the same time" << std::endl);
 	if (cfg::passAllocationPtr)
 		Log(L"[+] Pass Allocation Ptr as first param enabled" << std::endl);
 	if (cfg::copyHeader)
 		Log(L"[+] Copying driver header enabled" << std::endl);
-
-	if (cfg::free && cfg::indPagesMode)
-	{
-		Log(L"[-] Can't use --free and --indPages at the same time" << std::endl);
-		help();
-		return -1;
-	}
 
 	iqvw64e_device_handle = intel_driver::Load();
 
