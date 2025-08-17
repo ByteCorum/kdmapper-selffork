@@ -88,6 +88,11 @@ https://github.com/ByteCorum/DragonBurn
 
 )LOGO");
 
+	bool free = false; // Automatically frees mapped memory after execution	Dangerous unless the driver finishes instantly
+	bool indPagesMode = false; // Maps the driver into non-contiguous, separate memory pages	Better for stealth, but more complex
+	bool copyHeader = false; // Ensures the PE headers are copied into memory	Needed for drivers that inspect their own image
+	bool passAllocationPtr = false; // Passes allocated memory pointer as first param to entry point	Used by custom loaders or shellcode-style drivers
+	// Can't use --free and --indPages at the same time"
 	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
 	std::string supportedVersions;
 
@@ -113,13 +118,13 @@ https://github.com/ByteCorum/DragonBurn
 		return -1;
 	}
 
-	if (cfg::free)
+	if (free)
 		Log(L"[+] Free pool memory after usage enabled" << std::endl);
-	if (cfg::indPagesMode)
-		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);// Log(L"[-] Can't use --free and --indPages at the same time" << std::endl);
-	if (cfg::passAllocationPtr)
+	if (indPagesMode)
+		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);
+	if (passAllocationPtr)
 		Log(L"[+] Pass Allocation Ptr as first param enabled" << std::endl);
-	if (cfg::copyHeader)
+	if (copyHeader)
 		Log(L"[+] Copying driver header enabled" << std::endl);
 
 	iqvw64e_device_handle = intel_driver::Load();
@@ -131,12 +136,12 @@ https://github.com/ByteCorum/DragonBurn
 
 	kdmapper::AllocationMode mode = kdmapper::AllocationMode::AllocatePool;
 
-	if (cfg::indPagesMode) {
+	if (indPagesMode) {
 		mode = kdmapper::AllocationMode::AllocateIndependentPages;
 	}
 
 	NTSTATUS exitCode = 0;
-	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !cfg::copyHeader, mode, cfg::passAllocationPtr, callbackExample, &exitCode)) {
+	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode)) {
 		Log(L"[-] Failed to map DragonBurn driver"<< std::endl);
 		intel_driver::Unload(iqvw64e_device_handle);
 		system("pause");
