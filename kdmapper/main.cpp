@@ -93,22 +93,21 @@ https://github.com/ByteCorum/DragonBurn
 	bool copyHeader = false; // Ensures the PE headers are copied into memory	Needed for drivers that inspect their own image
 	bool passAllocationPtr = false; // Passes allocated memory pointer as first param to entry point	Used by custom loaders or shellcode-style drivers
 	// Can't use --free and --indPages at the same time"
+
 	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
 	std::string supportedVersions;
-
 	Log(L"[<] Checking mapper version..." << std::endl);
-	if (!Web::CheckConnection())
+	try
 	{
-		Log(L"[-] Bad internet connection" << std::endl);
+		Web::Get(curVersionUrl, supportedVersions);
+	}
+	catch (const std::runtime_error& error)
+	{
+		Log(error.what() << std::endl);
 		system("pause");
 		return -1;
 	}
-	if (!Web::Get(curVersionUrl, supportedVersions))
-	{
-		Log(L"[-] Failed to get currently supported versions" << std::endl);
-		system("pause");
-		return -1;
-	}
+
 	if (supportedVersions.find(cfg::version) != std::string::npos)
 		std::cout << "[+] Your mapper version is up to date and supported"<< std::endl;
 	else 
@@ -136,12 +135,14 @@ https://github.com/ByteCorum/DragonBurn
 
 	kdmapper::AllocationMode mode = kdmapper::AllocationMode::AllocatePool;
 
-	if (indPagesMode) {
+	if (indPagesMode)
+	{
 		mode = kdmapper::AllocationMode::AllocateIndependentPages;
 	}
 
 	NTSTATUS exitCode = 0;
-	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode)) {
+	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode))
+	{
 		Log(L"[-] Failed to map DragonBurn driver"<< std::endl);
 		intel_driver::Unload(iqvw64e_device_handle);
 		system("pause");
