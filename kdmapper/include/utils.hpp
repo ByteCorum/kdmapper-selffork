@@ -5,12 +5,6 @@
 #include <vector>
 #include <iostream>
 
-#if defined(DISABLE_OUTPUT)
-#define Log(content) 
-#else
-#define Log(content) std::wcout << content
-#endif
-
 namespace utils
 {
 	std::wstring GetFullTempPath();

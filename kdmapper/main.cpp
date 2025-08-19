@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <sstream>
 #include <TlHelp32.h>
 
 #include "kdmapper.hpp"
@@ -10,16 +11,20 @@
 #include "intel_driver.hpp"
 #include "cfg.hpp"
 #include "web_api.hpp"
+#include "logger.hpp"
 
 HANDLE iqvw64e_device_handle;
 
 
 LONG WINAPI SimplestCrashHandler(EXCEPTION_POINTERS* ExceptionInfo)
 {
-	if (ExceptionInfo && ExceptionInfo->ExceptionRecord)
-		Log(L"[!!] Crash at addr 0x" << ExceptionInfo->ExceptionRecord->ExceptionAddress << L" by 0x" << std::hex << ExceptionInfo->ExceptionRecord->ExceptionCode << std::endl);
+	if (ExceptionInfo && ExceptionInfo->ExceptionRecord) {
+		std::ostringstream oss;
+		oss << "Crash at addr 0x" << ExceptionInfo->ExceptionRecord->ExceptionAddress << L" by 0x" << std::hex << ExceptionInfo->ExceptionRecord->ExceptionCode;
+		Log::Error(oss.str(), false);
+	}
 	else
-		Log(L"[!!] Crash" << std::endl);
+		Log::Error("Program crashed!!!", false);
 
 	if (iqvw64e_device_handle)
 		intel_driver::Unload(iqvw64e_device_handle);
@@ -32,7 +37,7 @@ bool callbackExample(ULONG64* param1, ULONG64* param2, ULONG64 allocationPtr, UL
 	UNREFERENCED_PARAMETER(param2);
 	UNREFERENCED_PARAMETER(allocationPtr);
 	UNREFERENCED_PARAMETER(allocationSize);
-	Log("[+] Callback example called" << std::endl);
+	Log::Fine("Driver callback called");
 	
 	/*
 	This callback occurs before call driver entry and
@@ -89,71 +94,50 @@ https://github.com/ByteCorum/DragonBurn
 )LOGO");
 
 	bool free = false; // Automatically frees mapped memory after execution	Dangerous unless the driver finishes instantly
-	bool indPagesMode = false; // Maps the driver into non-contiguous, separate memory pages	Better for stealth, but more complex
+	bool indPagesMode = true; // Maps the driver into non-contiguous, separate memory pages	Better for stealth, but more complex
 	bool copyHeader = false; // Ensures the PE headers are copied into memory	Needed for drivers that inspect their own image
 	bool passAllocationPtr = false; // Passes allocated memory pointer as first param to entry point	Used by custom loaders or shellcode-style drivers
 	// Can't use --free and --indPages at the same time"
 
 	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
 	std::string supportedVersions;
-	Log(L"[<] Checking mapper version..." << std::endl);
+	Log::Info("[<] Checking mapper version...");
 	try
 	{
 		Web::Get(curVersionUrl, supportedVersions);
 	}
 	catch (const std::runtime_error& error)
 	{
-		Log(error.what() << std::endl);
-		system("pause");
-		return -1;
+		Log::Error(error.what());
 	}
 
-	if (supportedVersions.find(cfg::version) != std::string::npos)
-		std::cout << "[+] Your mapper version is up to date and supported"<< std::endl;
-	else 
+	if (supportedVersions.find(cfg::version) != std::string::npos) 
 	{
-		Log(L"[-] Your mapper version is out of support" << std::endl);
-		system("pause");
-		return -1;
+		Log::PreviousLine();
+		Log::Fine("Your mapper version is up to date and supported");
 	}
-
-	if (free)
-		Log(L"[+] Free pool memory after usage enabled" << std::endl);
-	if (indPagesMode)
-		Log(L"[+] Allocate Independent Pages mode enabled" << std::endl);
-	if (passAllocationPtr)
-		Log(L"[+] Pass Allocation Ptr as first param enabled" << std::endl);
-	if (copyHeader)
-		Log(L"[+] Copying driver header enabled" << std::endl);
+	else 
+		Log::Error("Your mapper version is out of support");
 
 	iqvw64e_device_handle = intel_driver::Load();
-
-	if (iqvw64e_device_handle == INVALID_HANDLE_VALUE) {
-		system("pause");
-		return -1;
-	}
+	if (iqvw64e_device_handle == INVALID_HANDLE_VALUE)
+		Log::Error("Failed to connect to intel driver");
 
 	kdmapper::AllocationMode mode = kdmapper::AllocationMode::AllocatePool;
-
 	if (indPagesMode)
-	{
 		mode = kdmapper::AllocationMode::AllocateIndependentPages;
-	}
 
 	NTSTATUS exitCode = 0;
 	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode))
 	{
-		Log(L"[-] Failed to map DragonBurn driver"<< std::endl);
 		intel_driver::Unload(iqvw64e_device_handle);
-		system("pause");
-		return -1;
+		Log::Error("Failed to map DragonBurn driver");
 	}
 
-	if (!intel_driver::Unload(iqvw64e_device_handle)) {
-		Log(L"[-] Warning failed to fully unload vulnerable driver" << std::endl);
-		system("pause");
-	}
-	Log(L"[+] success" << std::endl);
+	if (!intel_driver::Unload(iqvw64e_device_handle))
+		Log::Warning("Warning failed to unload intel driver", true);
+
+	Log::Fine("DragonBurn driver mapped successfully");
 	system("pause");
 	return 0;
 }

@@ -264,6 +264,7 @@
     <ClInclude Include="include\intel_driver.hpp" />
     <ClInclude Include="include\intel_driver_resource.hpp" />
     <ClInclude Include="include\kdmapper.hpp" />
+    <ClInclude Include="include\logger.hpp" />
     <ClInclude Include="include\nt.hpp" />
     <ClInclude Include="include\portable_executable.hpp" />
     <ClInclude Include="include\service.hpp" />

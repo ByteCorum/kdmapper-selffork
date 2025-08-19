@@ -34,7 +34,12 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="include\web_api.hpp" />
+    <ClInclude Include="include\logger.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\web_api.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">

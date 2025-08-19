@@ -3,14 +3,14 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
-
+#include "logger.hpp"
 #include "nt.hpp"
 
 std::wstring utils::GetFullTempPath() {
 	wchar_t temp_directory[MAX_PATH + 1] = { 0 };
 	const uint32_t get_temp_path_ret = GetTempPathW(sizeof(temp_directory) / 2, temp_directory);
 	if (!get_temp_path_ret || get_temp_path_ret > MAX_PATH + 1) {
-		Log(L"[-] Failed to get temp path" << std::endl);
+		Log::Error("Failed to get temp path", false);
 		return L"";
 	}
 	if (temp_directory[wcslen(temp_directory) - 1] == L'\\')

@@ -2,10 +2,9 @@
 #include <Windows.h>
 #include <string>
 #include <iostream>
-
-
 #include "utils.hpp"
 #include "nt.hpp"
+#include "logger.hpp"
 
 namespace intel_driver
 {
@@ -74,14 +73,14 @@ namespace intel_driver
 		// Setup function call
 		HMODULE ntdll = GetModuleHandleA("ntdll.dll");
 		if (ntdll == 0) {
-			Log(L"[-] Failed to load ntdll.dll" << std::endl); //never should happens
+			Log::Error("Failed to load ntdll.dll", false); //never should happens
 			return false;
 		}
 
 		const auto NtAddAtom = reinterpret_cast<void*>(GetProcAddress(ntdll, "NtAddAtom"));
 		if (!NtAddAtom)
 		{
-			Log(L"[-] Failed to get export ntdll.NtAddAtom" << std::endl);
+			Log::Error("Failed to get export ntdll.NtAddAtom", false);
 			return false;
 		}
 
@@ -91,7 +90,7 @@ namespace intel_driver
 
 		static uint64_t kernel_NtAddAtom = GetKernelModuleExport(device_handle, intel_driver::ntoskrnlAddr, "NtAddAtom");
 		if (!kernel_NtAddAtom) {
-			Log(L"[-] Failed to get export ntoskrnl.NtAddAtom" << std::endl);
+			Log::Error("Failed to get export ntoskrnl.NtAddAtom", false);
 			return false;
 		}
 
@@ -102,7 +101,7 @@ namespace intel_driver
 			original_kernel_function[1] == kernel_injected_jmp[1] &&
 			original_kernel_function[sizeof(kernel_injected_jmp) - 2] == kernel_injected_jmp[sizeof(kernel_injected_jmp) - 2] &&
 			original_kernel_function[sizeof(kernel_injected_jmp) - 1] == kernel_injected_jmp[sizeof(kernel_injected_jmp) - 1]) {
-			Log(L"[-] FAILED!: The code was already hooked!! another instance of kdmapper running?!" << std::endl);
+			Log::Error("The code was already hooked!! another instance of kdmapper running", false);
 			return false;
 		}
 
