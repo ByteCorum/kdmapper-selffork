@@ -60,7 +60,7 @@ bool FixSecurityCookie(void* local_image, ULONG64 kernel_image_base)
 	return true;
 }
 
-bool ResolveImports(HANDLE iqvw64e_device_handle, portable_executable::vec_imports imports) {
+bool ResolveImports(portable_executable::vec_imports imports) {
 	for (const auto& current_import : imports) {
 		ULONG64 Module = utils::GetKernelModuleAddress(current_import.module_name);
 		std::ostringstream ss;
@@ -75,12 +75,12 @@ bool ResolveImports(HANDLE iqvw64e_device_handle, portable_executable::vec_impor
 		}
 
 		for (auto& current_function_data : current_import.function_datas) {
-			ULONG64 function_address = intel_driver::GetKernelModuleExport(iqvw64e_device_handle, Module, current_function_data.name);
+			ULONG64 function_address = intel_driver::GetKernelModuleExport(Module, current_function_data.name);
 
 			if (!function_address) {
 				//Lets try with ntoskrnl
 				if (Module != intel_driver::ntoskrnlAddr) {
-					function_address = intel_driver::GetKernelModuleExport(iqvw64e_device_handle, intel_driver::ntoskrnlAddr, current_function_data.name);
+					function_address = intel_driver::GetKernelModuleExport(intel_driver::ntoskrnlAddr, current_function_data.name);
 					if (!function_address) {
 
 						ss << "Failed to resolve import " << current_function_data.name << " (" << current_import.module_name << ")";
@@ -99,7 +99,7 @@ bool ResolveImports(HANDLE iqvw64e_device_handle, portable_executable::vec_impor
 	return true;
 }
 
-ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 param1, ULONG64 param2, bool free, bool destroyHeader, AllocationMode mode, bool PassAllocationAddressAsFirstParam, mapCallback callback, NTSTATUS* exitCode) {
+ULONG64 kdmapper::MapDriver(BYTE* data, ULONG64 param1, ULONG64 param2, bool free, bool destroyHeader, AllocationMode mode, bool PassAllocationAddressAsFirstParam, mapCallback callback, NTSTATUS* exitCode) {
 
 	const PIMAGE_NT_HEADERS64 nt_headers = portable_executable::GetNtHeaders(data);
 	std::ostringstream ss;
@@ -126,10 +126,10 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 	ULONG64 kernel_image_base = 0;
 	if (mode == AllocationMode::AllocateIndependentPages)
 	{
-		kernel_image_base = intel_driver::MmAllocateIndependentPagesEx(iqvw64e_device_handle, image_size);
+		kernel_image_base = intel_driver::MmAllocateIndependentPagesEx(image_size);
 	}
 	else { // AllocatePool by default
-		kernel_image_base = intel_driver::AllocatePool(iqvw64e_device_handle, nt::POOL_TYPE::NonPagedPool, image_size);
+		kernel_image_base = intel_driver::AllocatePool(nt::POOL_TYPE::NonPagedPool, image_size);
 	}
 
 	if (!kernel_image_base) {
@@ -139,7 +139,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		return 0;
 	}
 
-	do 
+	do
 	{
 		ss << "Image base has been allocated at 0x" << reinterpret_cast<void*>(kernel_image_base);
 		Log::Fine(ss.str());
@@ -161,7 +161,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		}
 
 		ULONG64 realBase = kernel_image_base;
-		if (destroyHeader) 
+		if (destroyHeader)
 		{
 			kernel_image_base -= TotalVirtualHeaderSize;
 			ss << "Skipped 0x" << std::hex << TotalVirtualHeaderSize << L" bytes of PE Header";
@@ -178,15 +178,16 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 			return 0;
 		}
 
-		if (!ResolveImports(iqvw64e_device_handle, portable_executable::GetImports(local_image_base))) {
+		if (!ResolveImports(portable_executable::GetImports(local_image_base)))
+		{
 			Log::Error("Failed to resolve imports", false);
 			kernel_image_base = realBase;
 			break;
 		}
 
 		// Write fixed image to kernel
-
-		if (!intel_driver::WriteMemory(iqvw64e_device_handle, realBase, (PVOID)((uintptr_t)local_image_base + (destroyHeader ? TotalVirtualHeaderSize : 0)), image_size)) {
+		if (!intel_driver::WriteMemory(realBase, (PVOID)((uintptr_t)local_image_base + (destroyHeader ? TotalVirtualHeaderSize : 0)), image_size)) 
+		{
 			Log::Error("Failed to write local image to remote image", false);
 			kernel_image_base = realBase;
 			break;
@@ -242,7 +243,8 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 				Log::Fine(ss.str());
 				ss.str("");
 
-				if (!intel_driver::MmSetPageProtection(iqvw64e_device_handle, secAddr, secSize, prot)) {
+				if (!intel_driver::MmSetPageProtection(secAddr, secSize, prot))
+				{
 					ss << "Failed to set protection for section: " << (char*)sec->Name;
 					Log::Error(ss.str(), false);
 					ss.str("");
@@ -251,15 +253,16 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		}
 
 		// Call driver entry point
-
 		const ULONG64 address_of_entry_point = kernel_image_base + nt_headers->OptionalHeader.AddressOfEntryPoint;
 
 		ss << "Calling DriverEntry 0x" << reinterpret_cast<void*>(address_of_entry_point);
 		Log::Info(ss.str());
 		ss.str("");
 
-		if (callback) {
-			if (!callback(&param1, &param2, realBase, image_size)) {
+		if (callback)
+		{
+			if (!callback(&param1, &param2, realBase, image_size))
+			{
 				Log::Error("Callback returns false, failed", false);
 				kernel_image_base = realBase;
 				break;
@@ -267,7 +270,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		}
 
 		NTSTATUS status = 0;
-		if (!intel_driver::CallKernelFunction(iqvw64e_device_handle, &status, address_of_entry_point, (PassAllocationAddressAsFirstParam ? realBase : param1), param2))
+		if (!intel_driver::CallKernelFunction(&status, address_of_entry_point, (PassAllocationAddressAsFirstParam ? realBase : param1), param2))
 		{
 			Log::Error("Failed to call DragonBurn kernel entry", false);
 			kernel_image_base = realBase;
@@ -277,21 +280,20 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		if (exitCode)
 			*exitCode = status;
 
-		
 		ss << "DriverEntry returned 0x" << std::hex << status;
 		Log::Fine(ss.str());
 		ss.str("");
 
 		// Free memory
-		if (free) 
+		if (free)
 		{
 			Log::Info("Freeing memory...");
 			bool free_status = false;
 
 			if (mode == AllocationMode::AllocateIndependentPages)
-				free_status = intel_driver::MmFreeIndependentPages(iqvw64e_device_handle, realBase, image_size);
+				free_status = intel_driver::MmFreeIndependentPages(realBase, image_size);
 			else
-				free_status = intel_driver::FreePool(iqvw64e_device_handle, realBase);
+				free_status = intel_driver::FreePool(realBase);
 
 			Log::PreviousLine();
 			if (free_status)
@@ -314,9 +316,9 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 	bool free_status = false;
 
 	if (mode == AllocationMode::AllocateIndependentPages)
-		free_status = intel_driver::MmFreeIndependentPages(iqvw64e_device_handle, kernel_image_base, image_size);
+		free_status = intel_driver::MmFreeIndependentPages(kernel_image_base, image_size);
 	else
-		free_status = intel_driver::FreePool(iqvw64e_device_handle, kernel_image_base);
+		free_status = intel_driver::FreePool(kernel_image_base);
 
 	Log::PreviousLine();
 	if (free_status)
