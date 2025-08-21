@@ -13,9 +13,6 @@
 #include "web_api.hpp"
 #include "logger.hpp"
 
-HANDLE iqvw64e_device_handle;
-
-
 LONG WINAPI SimplestCrashHandler(EXCEPTION_POINTERS* ExceptionInfo)
 {
 	if (ExceptionInfo && ExceptionInfo->ExceptionRecord) {
@@ -26,8 +23,8 @@ LONG WINAPI SimplestCrashHandler(EXCEPTION_POINTERS* ExceptionInfo)
 	else
 		Log::Error("Program crashed!!!", false);
 
-	if (iqvw64e_device_handle)
-		intel_driver::Unload(iqvw64e_device_handle);
+	if (intel_driver::hDevice)
+		intel_driver::Unload();
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -56,7 +53,7 @@ DWORD getParentProcess()
 
 	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	__try {
-		if (hSnapshot == INVALID_HANDLE_VALUE) __leave;
+		if (hSnapshot == INVALID_HANDLE_VALUE || hSnapshot == 0) __leave;
 
 		ZeroMemory(&pe32, sizeof(pe32));
 		pe32.dwSize = sizeof(pe32);
@@ -71,7 +68,7 @@ DWORD getParentProcess()
 
 	}
 	__finally {
-		if (hSnapshot != INVALID_HANDLE_VALUE) CloseHandle(hSnapshot);
+		if (hSnapshot != INVALID_HANDLE_VALUE && hSnapshot != 0) CloseHandle(hSnapshot);
 	}
 	return ppid;
 }
@@ -111,16 +108,15 @@ https://github.com/ByteCorum/DragonBurn
 		Log::Error(error.what());
 	}
 
-	if (supportedVersions.find(cfg::version) != std::string::npos) 
+	if (supportedVersions.find(cfg::version) != std::string::npos)
 	{
 		Log::PreviousLine();
 		Log::Fine("Your mapper version is up to date and supported");
 	}
-	else 
+	else
 		Log::Error("Your mapper version is out of support");
 
-	iqvw64e_device_handle = intel_driver::Load();
-	if (iqvw64e_device_handle == INVALID_HANDLE_VALUE)
+	if (!intel_driver::Load())
 		Log::Error("Failed to connect to intel driver");
 
 	kdmapper::AllocationMode mode = kdmapper::AllocationMode::AllocatePool;
@@ -128,13 +124,13 @@ https://github.com/ByteCorum/DragonBurn
 		mode = kdmapper::AllocationMode::AllocateIndependentPages;
 
 	NTSTATUS exitCode = 0;
-	if (!kdmapper::MapDriver(iqvw64e_device_handle, cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode))
+	if (!kdmapper::MapDriver(cfg::image.data(), 0, 0, free, !copyHeader, mode, passAllocationPtr, callbackExample, &exitCode))
 	{
-		intel_driver::Unload(iqvw64e_device_handle);
+		intel_driver::Unload();
 		Log::Error("Failed to map DragonBurn driver");
 	}
 
-	if (!intel_driver::Unload(iqvw64e_device_handle))
+	if (!intel_driver::Unload())
 		Log::Warning("Warning failed to unload intel driver", true);
 
 	Log::Fine("DragonBurn driver mapped successfully");

@@ -26,14 +26,14 @@ bool service::RegisterAndStart(const std::wstring& driver_path, const std::wstri
 		Log::Error("Can't create 'ImagePath' registry value", false);
 		return false;
 	}
-	
+
 	status = RegSetKeyValueW(dservice, NULL, L"Type", REG_DWORD, &ServiceTypeKernel, sizeof(DWORD));
 	if (status != ERROR_SUCCESS) {
 		RegCloseKey(dservice);
 		Log::Error("Can't create 'Type' registry value", false);
 		return false;
 	}
-	
+
 	RegCloseKey(dservice);
 
 	HMODULE ntdll = GetModuleHandleA("ntdll.dll");
@@ -62,25 +62,25 @@ bool service::RegisterAndStart(const std::wstring& driver_path, const std::wstri
 	Log::Fine(ss.str());
 	ss.clear();
 
-	if (Status == 0xC0000603) { //STATUS_IMAGE_CERT_REVOKED
+	if (Status == STATUS_IMAGE_CERT_REVOKED)
 		Log::Error("Your vulnerable driver list is enabled and have blocked the driver loading, you must disable vulnerable driver list to use kdmapper with intel driver\n>>>Registry path to disable vulnerable driver list: HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\CI\\Config\n>>>Set 'VulnerableDriverBlocklistEnable' as dword to 0", false);
-	}
-	else if (Status == 0xC0000022 || Status == 0xC000009A) { //STATUS_ACCESS_DENIED and STATUS_INSUFFICIENT_RESOURCES
+
+	else if (Status == STATUS_ACCESS_DENIED || Status == STATUS_INSUFFICIENT_RESOURCES)
+	{
 		ss << "Access Denied or Insufficient Resources (0x" << std::hex << Status << "), Probably some anticheat or antivirus running blocking the load of vulnerable driver";
 		Log::Error(ss.str(), false);
 		ss.clear();
 	}
-	
-	
+
 	//Never should occur since kdmapper checks for "IsRunning" driver before
-	if (Status == 0xC000010E) {// STATUS_IMAGE_ALREADY_LOADED
+	if (Status == STATUS_IMAGE_ALREADY_LOADED)
 		return true;
-	}
-	
+
 	return NT_SUCCESS(Status);
 }
 
-bool service::StopAndRemove(const std::wstring& serviceName) {
+bool service::StopAndRemove(const std::wstring& serviceName)
+{
 	std::ostringstream ss;
 	HMODULE ntdll = GetModuleHandleA("ntdll.dll");
 	if (ntdll == NULL)
@@ -111,7 +111,6 @@ bool service::StopAndRemove(const std::wstring& serviceName) {
 		status = RegDeleteTreeW(HKEY_LOCAL_MACHINE, servicesPath.c_str());
 		return false; //lets consider unload fail as error because can cause problems with anti cheats later
 	}
-	
 
 	status = RegDeleteTreeW(HKEY_LOCAL_MACHINE, servicesPath.c_str());
 	if (status != ERROR_SUCCESS) {
