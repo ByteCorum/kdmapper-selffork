@@ -101,7 +101,7 @@ https://github.com/ByteCorum/DragonBurn
 
 	const std::string curVersionUrl = "https://raw.githubusercontent.com/ByteCorum/DragonBurn/data/version";
 	std::string supportedVersions;
-	Log::Info("[<] Checking mapper version...");
+	Log::Info("Checking mapper version...");
 	try
 	{
 		Web::Get(curVersionUrl, supportedVersions);

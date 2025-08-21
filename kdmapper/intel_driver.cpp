@@ -328,7 +328,7 @@ bool intel_driver::ClearWdFilterDriverList(HANDLE device_handle) {
 
 					ss << "WdFilterDriverList Cleaned: " << ImageName;
 					Log::Fine(ss.str());
-					ss.clear();
+					ss.str("");
 
 					return true;
 				}
@@ -472,7 +472,7 @@ bool intel_driver::WriteToReadOnlyMemory(HANDLE device_handle, uint64_t address,
 	if (!GetPhysicalAddress(device_handle, address, &physical_address)) {
 		ss << "Failed to translate virtual address 0x" << reinterpret_cast<void*>(address);
 		Log::Error(ss.str(), false);
-		ss.clear();
+		ss.str("");
 		return false;
 	}
 
@@ -481,7 +481,7 @@ bool intel_driver::WriteToReadOnlyMemory(HANDLE device_handle, uint64_t address,
 	if (!mapped_physical_memory) {
 		ss << "Failed to map IO space of 0x" << reinterpret_cast<void*>(physical_address);
 		Log::Error(ss.str(), false);
-		ss.clear();
+		ss.str("");
 		return false;
 	}
 
@@ -491,7 +491,7 @@ bool intel_driver::WriteToReadOnlyMemory(HANDLE device_handle, uint64_t address,
 	{
 		ss << "Failed to unmap IO space of physical address 0x" << reinterpret_cast<void*>(physical_address);
 		Log::Warning(ss.str(), false);
-		ss.clear();
+		ss.str("");
 	}
 
 
@@ -785,7 +785,7 @@ bool intel_driver::ClearMmUnloadedDrivers(HANDLE device_handle) {
 
 	ss << "MmUnloadedDrivers Cleaned: " << unloadedName;
 	Log::Fine(ss.str());
-	ss.clear();
+	ss.str("");
 	return true;
 }
 
@@ -916,9 +916,9 @@ bool intel_driver::ClearPiDDBCacheTable(HANDLE device_handle) { //PiDDBCacheTabl
 	}
 
 	ss << "PiDDBLock Ptr 0x" << std::hex << PiDDBLockPtr;
-	Log::Fine(ss.str()); ss.clear();
+	Log::Fine(ss.str()); ss.str("");
 	ss << "PiDDBCacheTable Ptr 0x" << std::hex << PiDDBCacheTablePtr;
-	Log::Fine(ss.str()); ss.clear();
+	Log::Fine(ss.str()); ss.str("");
 
 	PVOID PiDDBLock = ResolveRelativeAddress(device_handle, (PVOID)PiDDBLockPtr, 3, 7);
 	nt::PRTL_AVL_TABLE PiDDBCacheTable = (nt::PRTL_AVL_TABLE)ResolveRelativeAddress(device_handle, (PVOID)PiDDBCacheTablePtr, 6, 10);
@@ -960,7 +960,7 @@ bool intel_driver::ClearPiDDBCacheTable(HANDLE device_handle) { //PiDDBCacheTabl
 
 	ss << "Found Table Entry = 0x" << std::hex << pFoundEntry;
 	Log::Fine(ss.str());
-	ss.clear();
+	ss.str("");
 
 	if (!WriteMemory(device_handle, (uintptr_t)prev + (offsetof(struct _LIST_ENTRY, Flink)), &next, sizeof(_LIST_ENTRY*))) {
 		Log::Error("Can't set next entry", false);
@@ -1075,7 +1075,7 @@ bool intel_driver::ClearKernelHashBucketList(HANDLE device_handle) {
 
 	ss << "g_KernelHashBucketList Found 0x" << std::hex << g_KernelHashBucketList;
 	Log::Fine(ss.str());
-	ss.clear();
+	ss.str("");
 
 	if (!ExAcquireResourceExclusiveLite(device_handle, g_HashCacheLock, true)) {
 		Log::Error("Can't lock g_HashCacheLock", false);
@@ -1138,7 +1138,7 @@ bool intel_driver::ClearKernelHashBucketList(HANDLE device_handle) {
 			if (find_result != std::wstring::npos) {
 				ss << "Found In g_KernelHashBucketList: " << &wsName[find_result];
 				Log::Fine(ss.str());
-				ss.clear();
+				ss.str("");
 
 				nt::HashBucketEntry* Next = 0;
 				if (!ReadMemory(device_handle, (uintptr_t)entry, &Next, sizeof(Next))) {

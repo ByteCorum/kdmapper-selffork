@@ -60,7 +60,7 @@ bool service::RegisterAndStart(const std::wstring& driver_path, const std::wstri
 
 	ss << "NtLoadDriver Status 0x" << std::hex << Status;
 	Log::Fine(ss.str());
-	ss.clear();
+	ss.str("");
 
 	if (Status == 0xC0000603) { //STATUS_IMAGE_CERT_REVOKED
 		Log::Error("Your vulnerable driver list is enabled and have blocked the driver loading, you must disable vulnerable driver list to use kdmapper with intel driver\n>>>Registry path to disable vulnerable driver list: HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\CI\\Config\n>>>Set 'VulnerableDriverBlocklistEnable' as dword to 0", false);
@@ -68,7 +68,7 @@ bool service::RegisterAndStart(const std::wstring& driver_path, const std::wstri
 	else if (Status == 0xC0000022 || Status == 0xC000009A) { //STATUS_ACCESS_DENIED and STATUS_INSUFFICIENT_RESOURCES
 		ss << "Access Denied or Insufficient Resources (0x" << std::hex << Status << "), Probably some anticheat or antivirus running blocking the load of vulnerable driver";
 		Log::Error(ss.str(), false);
-		ss.clear();
+		ss.str("");
 	}
 	
 	
@@ -104,7 +104,7 @@ bool service::StopAndRemove(const std::wstring& serviceName) {
 	NTSTATUS st = nt::NtUnloadDriver(&serviceStr);
 	ss << "NtUnloadDriver Status 0x" << std::hex << st;
 	Log::Fine(ss.str());
-	ss.clear();
+	ss.str("");
 
 	if (st != ERROR_SUCCESS) {
 		Log::Error("Driver Unload Failed!!", false);

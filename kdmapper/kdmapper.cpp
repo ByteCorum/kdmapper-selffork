@@ -69,7 +69,7 @@ bool ResolveImports(HANDLE iqvw64e_device_handle, portable_executable::vec_impor
 		{
 			ss << "Dependency " << current_import.module_name << " wasn't found";
 			Log::Error(ss.str(), false);
-			ss.clear();
+			ss.str("");
 
 			return false;
 		}
@@ -85,7 +85,7 @@ bool ResolveImports(HANDLE iqvw64e_device_handle, portable_executable::vec_impor
 
 						ss << "Failed to resolve import " << current_function_data.name << " (" << current_import.module_name << ")";
 						Log::Error(ss.str(), false);
-						ss.clear();
+						ss.str("");
 
 						return false;
 					}
@@ -143,7 +143,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 	{
 		ss << "Image base has been allocated at 0x" << reinterpret_cast<void*>(kernel_image_base);
 		Log::Fine(ss.str());
-		ss.clear();
+		ss.str("");
 
 		// Copy image headers
 
@@ -166,7 +166,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 			kernel_image_base -= TotalVirtualHeaderSize;
 			ss << "Skipped 0x" << std::hex << TotalVirtualHeaderSize << L" bytes of PE Header";
 			Log::Fine(ss.str());
-			ss.clear();
+			ss.str("");
 		}
 
 		// Resolve relocs and imports
@@ -216,7 +216,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 				{
 					ss << L"Skipping empty section: " << (char*)sec->Name;
 					Log::Info(ss.str());
-					ss.clear();
+					ss.str("");
 					continue;
 				}
 
@@ -240,12 +240,12 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 					<< L" Prot: " << ProtectionToString(prot)
 					<< std::dec;
 				Log::Fine(ss.str());
-				ss.clear();
+				ss.str("");
 
 				if (!intel_driver::MmSetPageProtection(iqvw64e_device_handle, secAddr, secSize, prot)) {
 					ss << "Failed to set protection for section: " << (char*)sec->Name;
 					Log::Error(ss.str(), false);
-					ss.clear();
+					ss.str("");
 				}
 			}
 		}
@@ -256,7 +256,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 
 		ss << "Calling DriverEntry 0x" << reinterpret_cast<void*>(address_of_entry_point);
 		Log::Info(ss.str());
-		ss.clear();
+		ss.str("");
 
 		if (callback) {
 			if (!callback(&param1, &param2, realBase, image_size)) {
@@ -280,7 +280,7 @@ ULONG64 kdmapper::MapDriver(HANDLE iqvw64e_device_handle, BYTE* data, ULONG64 pa
 		
 		ss << "DriverEntry returned 0x" << std::hex << status;
 		Log::Fine(ss.str());
-		ss.clear();
+		ss.str("");
 
 		// Free memory
 		if (free) 
